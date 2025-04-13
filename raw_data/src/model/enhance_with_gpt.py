@@ -1,17 +1,16 @@
 import os
 import json
-import openai
+from openai import OpenAI
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 # Use the environment variable (recommended)
-openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def enhance_commentary(prompt_text, temperature=0.7):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt_text}],
-        temperature=temperature
-    )
-    enhanced_text = response.choices[0].message["content"].strip()
+    response = client.chat.completions.create(model="gpt-3.5-turbo",
+    messages=[{"role": "user", "content": prompt_text}],
+    temperature=temperature)
+    enhanced_text = response.choices[0].message.content.strip()
     return enhanced_text
 
 def main():
