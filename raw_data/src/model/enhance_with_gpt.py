@@ -18,8 +18,8 @@ def enhance_commentary(prompt_text, temperature=0.7):
         return ""
 
 def main():
-    input_file = "data/processed/draft_commentary.jsonl"
-    output_file = "data/processed/enhanced_commentary.jsonl"
+    input_file = "data/processed/last_81k_draft.jsonl"
+    output_file = "data/processed/last_81k_enhance.jsonl"
 
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
