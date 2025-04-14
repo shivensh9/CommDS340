@@ -4,14 +4,18 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-# Use the environment variable (recommended)
-
 def enhance_commentary(prompt_text, temperature=0.7):
-    response = client.chat.completions.create(model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": prompt_text}],
-    temperature=temperature)
-    enhanced_text = response.choices[0].message.content.strip()
-    return enhanced_text
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt_text}],
+            temperature=temperature
+        )
+        enhanced_text = response.choices[0].message.content.strip()
+        return enhanced_text
+    except Exception as e:
+        print(f"Error enhancing prompt: {prompt_text}\nError: {e}")
+        return ""
 
 def main():
     input_file = "data/processed/draft_commentary.jsonl"

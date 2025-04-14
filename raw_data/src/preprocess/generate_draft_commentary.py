@@ -1,14 +1,24 @@
 import sys
 import os
-# Add the project root (raw_data) to sys.path to allow importing from "src"
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
 import pandas as pd
 import json
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from src.prompt_engineering.template_generator import get_template
 
+def safe_get(row, key, default=""):
+    val = row.get(key, default)
+    if pd.isna(val):
+        return default
+    return str(val)
+
+def clean_player_name(name):
+    # Remove everything after a hyphen (if present), including the hyphen.
+    if "-" in name:
+        return name.split("-")[0].strip()
+    return name
+
 def determine_event_type(row):
-    """Infer event type from available columns."""
     if pd.notna(row["ShotOutcome"]):
         if row["ShotOutcome"].lower() == "make":
             if row["ShotType"] == "3PT":
@@ -17,54 +27,53 @@ def determine_event_type(row):
                 return "2pt_made"
         elif row["ShotOutcome"].lower() == "miss":
             return "missed_shot"
-
     elif pd.notna(row["FreeThrowOutcome"]):
         return "free_throw"
-
     elif pd.notna(row["ReboundType"]):
         if row["ReboundType"].lower() == "off":
             return "rebound_offensive"
         else:
             return "rebound_defensive"
-
     elif pd.notna(row["TurnoverPlayer"]):
         return "turnover"
-
     elif pd.notna(row["FoulType"]):
         return "foul"
-
     elif pd.notna(row["EnterGame"]) and pd.notna(row["LeaveGame"]):
         return "substitution"
-
     elif pd.notna(row["TimeoutTeam"]):
         return "timeout"
-
     elif pd.notna(row["JumpballAwayPlayer"]) and pd.notna(row["JumpballHomePlayer"]):
         return "jump_ball"
-
     elif pd.notna(row["ViolationType"]):
         return "violation"
-
     return None
 
 def extract_details(row):
+    player1 = (
+        safe_get(row, "Shooter", "") or
+        safe_get(row, "FreeThrowShooter", "") or
+        safe_get(row, "Rebounder", "") or
+        safe_get(row, "Fouler", "") or
+        safe_get(row, "TurnoverPlayer", "Player") or
+        safe_get(row, "ViolationPlayer", "Player") or
+        safe_get(row, "EnterGame", "Player") or "Player"
+    )
     return {
-        "PLAYER1": row.get("Shooter") or row.get("FreeThrowShooter") or row.get("Rebounder") or
-                   row.get("Fouler") or row.get("TurnoverPlayer") or
-                   row.get("ViolationPlayer") or row.get("EnterGame") or "Player",
-        "PLAYER2": row.get("LeaveGame") or row.get("Assister") or row.get("Blocker") or "",
-        "TEAM": row.get("TimeoutTeam") or "Team",
-        "LOCATION": "beyond the arc" if row.get("ShotType") == "3PT" else "inside the paint"
+        "PLAYER1": clean_player_name(player1),
+        "PLAYER2": (
+            safe_get(row, "LeaveGame", "") or
+            safe_get(row, "Assister", "") or
+            safe_get(row, "Blocker", "")
+        ),
+        "TEAM": safe_get(row, "TimeoutTeam", "Team"),
+        "LOCATION": "beyond the arc" if safe_get(row, "ShotType", "") == "3PT" else "inside the paint"
     }
 
 def main():
-    # Since your CSV is in the same directory as this script (src/preprocess),
-    # use this path to reference the CSV.
     input_csv = os.path.join(os.path.dirname(__file__), "NBA_PBP_2020-21.csv")
     output_jsonl = "data/processed/draft_commentary.jsonl"
 
     df = pd.read_csv(input_csv)
-
     results = []
 
     for _, row in df.iterrows():
